@@ -174,9 +174,9 @@ for i in np.arange(1, len(mask_list)):
     x_pid, y_pid, dx_pid, dy_pid = get_arrow_info(pid_trajectory, target_center)
     
     fig = plt.figure()
-    plt.text(10, 150, "Feedback: " + str(feedback_trajectory))
-    plt.text(10, 160, "Target: " + str(target_trajectory))
-    plt.text(10, 170, "PID: " + str(pid_trajectory))
+    # plt.text(10, 150, "Feedback: " + str(feedback_trajectory))
+    # plt.text(10, 160, "Target: " + str(target_trajectory))
+    # plt.text(10, 170, "PID: " + str(pid_trajectory))
     plt.arrow(x_f, y_f, dx_f, dy_f, width = 1, color = "yellow")
     plt.arrow(x_t, y_t, dx_t, dy_t, width = 1, color = "lightblue")
     plt.arrow(x_pid, y_pid, dx_pid, dy_pid, width = 1, color = "lightgreen")
@@ -191,5 +191,6 @@ for i in np.arange(1, len(mask_list)):
 
 print("FINISHED COMPUTING TRAJECTORIES")
 
+os.chdir("./images")
 os.system("ffmpeg -f image2 -framerate 1 -i pid_frame_%d.png pid.gif")
 os.system("mv pid.gif ../")
