@@ -192,5 +192,5 @@ for i in np.arange(1, len(mask_list)):
 print("FINISHED COMPUTING TRAJECTORIES")
 
 os.chdir("./images")
-os.system("ffmpeg -f image2 -framerate 1 -i pid_frame_%d.png pid.gif")
+os.system("ffmpeg -f image2 -framerate 50 -i pid_frame_%d.png pid.gif")
 os.system("mv pid.gif ../")
