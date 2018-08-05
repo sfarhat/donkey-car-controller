@@ -4,6 +4,7 @@ import matplotlib.image as mpimg
 from pylab import *
 import time
 import cv2
+import os
 
 IMAGE_DIM = 128
 P = 1.2
@@ -135,30 +136,60 @@ img_list = []
 
 for x in range(35, 1024):
 
-    print("Computing mask:", x - 35)
     filename = "../donkey_car/tub/" + str(x) + "_cam-image_array_.jpg"
     img = cv2.imread(filename, 0)
     img_list += [img]
 
-    edges = cv2.Canny(img, canny_low, canny_high)
+    edges = cv2.Canny(img, 100, 200)
     edges_list += [edges]
         
     mask = edges_to_mask(edges)
     mask_list += [mask]
 
+    print(x)
+
 print("FINISHED COMPUTING MASKS")
 
 
-for i in np.arange(len(mask_list)):
-    print("Computing trajectory:", i)
+pid = PIDController(P, I, D)
+
+mask = mask_list[0]
+img = img_list[0]
+feedback_trajectory, feedback_center = get_trajectory(mask, 1.05)
+feedback_scaled = feedback_trajectory[0] / IMAGE_DIM
+x_f, y_f, dx_f, dy_f = get_arrow_info(feedback_trajectory, feedback_center)
+
+for i in np.arange(1, len(mask_list)):
+    
     mask = mask_list[i]
     img = img_list[i]
-    feedback_trajectory, feedback_center = get_trajectory(mask, 1.05)
-    x, y, dx, dy = get_arrow_info(feedback_trajectory, feedback_center)
+    target_trajectory, target_center = get_trajectory(mask, 1.05)
+    
+    target_scaled = target_trajectory[0] / IMAGE_DIM
+    output = pid.update(target_scaled, feedback_scaled, debug = False)
+    actual = output * IMAGE_DIM
+    pid_trajectory = (actual + feedback_trajectory[0], feedback_trajectory[1])
+    
+    x_t, y_t, dx_t, dy_t = get_arrow_info(target_trajectory, target_center)
+    x_pid, y_pid, dx_pid, dy_pid = get_arrow_info(pid_trajectory, target_center)
+    
     fig = plt.figure()
-    plt.arrow(x, y, dx, dy, width = 1, color = "yellow")
+    plt.text(10, 150, "Feedback: " + str(feedback_trajectory))
+    plt.text(10, 160, "Target: " + str(target_trajectory))
+    plt.text(10, 170, "PID: " + str(pid_trajectory))
+    plt.arrow(x_f, y_f, dx_f, dy_f, width = 1, color = "yellow")
+    plt.arrow(x_t, y_t, dx_t, dy_t, width = 1, color = "lightblue")
+    plt.arrow(x_pid, y_pid, dx_pid, dy_pid, width = 1, color = "lightgreen")
     plt.imshow(mask, cmap = "RdYlGn",  interpolation='none')
     plt.imshow(img, alpha = 0.5)
-    fig.savefig("frame_" + str(i) + ".png")
+    fig.savefig("./images/pid_frame_" + str(i) + ".png")
+    
+    feedback_trajectory, feedback_center = target_trajectory, target_center
+    feedback_scaled = target_scaled
+
+    print(i)
 
 print("FINISHED COMPUTING TRAJECTORIES")
+
+os.system("ffmpeg -f image2 -framerate 1 -i pid_frame_%d.png pid.gif")
+os.system("mv pid.gif ../")
