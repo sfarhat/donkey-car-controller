@@ -25,3 +25,11 @@ The process of going from image to trajectory involves several steps:
   b. In the future, we hope to transfer this process to a pre-trained CNN known as SqueezeNet
 3. From the mask, compute the desired trajectory using an algorithm that takes the weighted sum of "good" pixels in each row and offsets the trajectory vector appropriately
 4. Using a PID controller where the feedback is the trajectory from the previous frame and the target is the trajectory for the current frame, compute the actual trajectory.
+
+# Demo
+
+Driving the Donkey Car around the meeting room, taking 128x128 photos at 20 FPS:
+
+<p align="center">
+  <img width="720" height="504" src="https://github.com/sfarhat/donkey-car-controller/blob/master/demo.gif">
+</p>
