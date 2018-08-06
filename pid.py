@@ -157,7 +157,6 @@ mask = mask_list[0]
 img = img_list[0]
 feedback_trajectory, feedback_center = get_trajectory(mask, 1.05)
 feedback_scaled = feedback_trajectory[0] / IMAGE_DIM
-x_f, y_f, dx_f, dy_f = get_arrow_info(feedback_trajectory, feedback_center)
 
 for i in np.arange(1, len(mask_list)):
     
@@ -170,6 +169,7 @@ for i in np.arange(1, len(mask_list)):
     actual = output * IMAGE_DIM
     pid_trajectory = (actual + feedback_trajectory[0], feedback_trajectory[1])
     
+    x_f, y_f, dx_f, dy_f = get_arrow_info(feedback_trajectory, feedback_center)
     x_t, y_t, dx_t, dy_t = get_arrow_info(target_trajectory, target_center)
     x_pid, y_pid, dx_pid, dy_pid = get_arrow_info(pid_trajectory, target_center)
     
