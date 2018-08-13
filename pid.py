@@ -6,12 +6,13 @@ import time
 import cv2
 import os
 
-IMAGE_DIM = 128
+IMAGE_DIM = 224
 P = 1.2
 I = 1
 D = 0.00001
-canny_low = 150
-canny_high = 250
+canny_low = 75
+canny_high = 150
+scaling_factor = 0.92
 
 
 def get_trajectory(img, weight_factor):
@@ -19,7 +20,7 @@ def get_trajectory(img, weight_factor):
     # Iterative algorithm. Begins at bottom of image and computes middle of green
     # area for each succesive row. The weight of that decision becomes less and 
     # less as the row index "decreases" -> gets farther away from car, scaled the weight_factor passed in. 
-    # A lower weight_factor (< 1 leads to problems) leads to more sensitive changes. Stops when first all 
+    # A lower weight_factor leads to less sensitive changes. Stops when first all 
     # "red" row encountered or reached top of image and returns (x, y) coordinates of trajectory vector
     
     weight, scaling_factor = 1, weight_factor
@@ -35,17 +36,18 @@ def get_trajectory(img, weight_factor):
                 right = j - 1
                 
         if left is 0 and img[i][0] == 0: # reached all "red" row
-            trajectory_y = i + 1 # this seems weird but it's because we are iterating through rows in reverse
+            # trajectory_y = i + 1 # this seems weird but it's because we are iterating through rows in reverse
             break
             
         mid = (left + right) / 2
         if i == IMAGE_DIM - 1:
             center = mid
             trajectory_x = center
+            trajectory_y = center
             
         trajectory_x = trajectory_x + ((mid - trajectory_x) * weight)
         left, right = 0, IMAGE_DIM - 1
-        weight /= scaling_factor
+        weight *= scaling_factor
         
     return [(trajectory_x, trajectory_y), center]
 
@@ -121,7 +123,8 @@ def edges_to_mask(edges):
             if j in bad_cols:
                 mask[i][j] = 0
             
-            if edges[i][j] and i not in buffer_y:
+            # if edges[i][j] and i not in buffer_y:
+            if edges[i][j]:
                 mask[i][j] = 0
                 # If an edge is detected, nowhere "ahead" in that path can be driven towards, 
                 # so mask all further rows in that column
@@ -134,13 +137,18 @@ edges_list = []
 mask_list = []
 img_list = []
 
-for x in range(35, 1024):
+os.system("rm -rf images")
+os.mkdir("./images")
+os.chdir("./images")
 
-    filename = "../donkey_car/tub/" + str(x) + "_cam-image_array_.jpg"
+# for x in range(35, 1024):
+for x in range(567, 8044):
+
+    filename = "../../donkey_car/tub3/tub/" + str(x) + "_cam-image_array_.jpg"
     img = cv2.imread(filename, 0)
     img_list += [img]
 
-    edges = cv2.Canny(img, 100, 200)
+    edges = cv2.Canny(img, canny_low, canny_high)
     edges_list += [edges]
         
     mask = edges_to_mask(edges)
@@ -155,14 +163,14 @@ pid = PIDController(P, I, D)
 
 mask = mask_list[0]
 img = img_list[0]
-feedback_trajectory, feedback_center = get_trajectory(mask, 1.05)
+feedback_trajectory, feedback_center = get_trajectory(mask, scaling_factor)
 feedback_scaled = feedback_trajectory[0] / IMAGE_DIM
 
 for i in np.arange(1, len(mask_list)):
     
     mask = mask_list[i]
     img = img_list[i]
-    target_trajectory, target_center = get_trajectory(mask, 1.05)
+    target_trajectory, target_center = get_trajectory(mask, scaling_factor)
     
     target_scaled = target_trajectory[0] / IMAGE_DIM
     output = pid.update(target_scaled, feedback_scaled, debug = False)
@@ -170,19 +178,19 @@ for i in np.arange(1, len(mask_list)):
     pid_trajectory = (actual + feedback_trajectory[0], feedback_trajectory[1])
     
     x_f, y_f, dx_f, dy_f = get_arrow_info(feedback_trajectory, feedback_center)
-    x_t, y_t, dx_t, dy_t = get_arrow_info(target_trajectory, target_center)
-    x_pid, y_pid, dx_pid, dy_pid = get_arrow_info(pid_trajectory, target_center)
+    # x_t, y_t, dx_t, dy_t = get_arrow_info(target_trajectory, target_center)
+    # x_pid, y_pid, dx_pid, dy_pid = get_arrow_info(pid_trajectory, target_center)
     
     fig = plt.figure()
     # plt.text(10, 150, "Feedback: " + str(feedback_trajectory))
     # plt.text(10, 160, "Target: " + str(target_trajectory))
     # plt.text(10, 170, "PID: " + str(pid_trajectory))
-    plt.arrow(x_f, y_f, dx_f, dy_f, width = 1, color = "yellow", alpha = 0.6)
-    plt.arrow(x_t, y_t, dx_t, dy_t, width = 1, color = "lightblue", alpha = 0.6)
-    plt.arrow(x_pid, y_pid, dx_pid, dy_pid, width = 1, color = "lightgreen")
+    plt.arrow(x_f, y_f, dx_f, dy_f, width = 1, color = "yellow")
+    # plt.arrow(x_t, y_t, dx_t, dy_t, width = 1, color = "lightblue", alpha = 0.2)
+    # plt.arrow(x_pid, y_pid, dx_pid, dy_pid, width = 1, color = "lightgreen")
     plt.imshow(mask, cmap = "RdYlGn",  interpolation='none')
     plt.imshow(img, alpha = 0.5)
-    fig.savefig("./images/pid_frame_" + str(i) + ".png")
+    fig.savefig("./frame_" + str(i) + ".png")
     
     feedback_trajectory, feedback_center = target_trajectory, target_center
     feedback_scaled = target_scaled
@@ -191,6 +199,5 @@ for i in np.arange(1, len(mask_list)):
 
 print("FINISHED COMPUTING TRAJECTORIES")
 
-os.chdir("./images")
-os.system("ffmpeg -f image2 -framerate 50 -i pid_frame_%d.png pid.gif")
-os.system("mv pid.gif ../")
+os.system("ffmpeg -f image2 -framerate 50 -i frame_%d.png demo.gif")
+os.system("mv demo.gif ../")
